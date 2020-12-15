@@ -1,9 +1,20 @@
-﻿using Ookii.Dialogs.Wpf;
+﻿using Newtonsoft.Json;
+using Ookii.Dialogs.Wpf;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Windows;
+using System.Windows.Forms;
 using WeatherApp.Commands;
+using WeatherApp.Models;
 using WeatherApp.Services;
+
+
+
+
+using System.Diagnostics;
+
 
 namespace WeatherApp.ViewModels
 {
@@ -57,14 +68,21 @@ namespace WeatherApp.ViewModels
 
         /// <summary>
         /// TODO 02 : Ajouter ImportCommand
+
+        public DelegateCommand<string> ImportCommand { get; set; }
+
+
         /// </summary>
 
         /// <summary>
         /// TODO 02 : Ajouter ExportCommand
+        public DelegateCommand<string> ExportCommand { get; set; }
+
         /// </summary>
 
         /// <summary>
         /// TODO 13a : Ajouter ChangeLanguageCommand
+          public DelegateCommand<string> ChangeLanguageCommand { get; set; }
         /// </summary>
 
 
@@ -84,11 +102,12 @@ namespace WeatherApp.ViewModels
 
             /// TODO 06 : Instancier ExportCommand qui doit appeler la méthode Export
             /// Ne peut s'exécuter que la méthode CanExport retourne vrai
-
+            ExportCommand = new DelegateCommand<string>(Export);
             /// TODO 03 : Instancier ImportCommand qui doit appeler la méthode Import
+            ImportCommand = new DelegateCommand<string>(Import);
 
             /// TODO 13b : Instancier ChangeLanguageCommand qui doit appeler la méthode ChangeLanguage
-
+            ChangeLanguageCommand = new DelegateCommand<string>(ChangeLanguage);
             initViewModels();          
 
             CurrentViewModel = ViewModels[0];
@@ -149,7 +168,16 @@ namespace WeatherApp.ViewModels
         /// <returns></returns>
         private bool CanExport(string obj)
         {
-            throw new NotImplementedException();
+            var vm = (TemperatureViewModel)ViewModels.FirstOrDefault(x => x.Name == typeof(TemperatureViewModel).Name);
+            if(vm.Temperatures.Count == 0)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+
         }
 
         /// <summary>
@@ -177,6 +205,12 @@ namespace WeatherApp.ViewModels
             ///   Appeler la méthode saveToFile
             ///   
 
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                Filename = saveFileDialog.FileName;
+                saveToFile();
+            }
+
         }
 
         private void saveToFile()
@@ -193,6 +227,22 @@ namespace WeatherApp.ViewModels
             /// Sérialiser la collection de températures
             /// Écrire dans le fichier
             /// Fermer le fichier           
+            var vm = (TemperatureViewModel)ViewModels.FirstOrDefault(x => x.Name == typeof(TemperatureViewModel).Name);
+
+
+            var resultat = JsonConvert.SerializeObject(vm.Temperatures, Formatting.Indented);
+
+            using (var tw = new StreamWriter(filename))
+            {
+                tw.WriteLine(resultat);
+                tw.Close();
+            }
+
+
+            Console.WriteLine(resultat);
+            Console.WriteLine("Appuyez sur une touche.");
+            Console.ReadLine();
+
 
         }
 
@@ -211,6 +261,34 @@ namespace WeatherApp.ViewModels
             /// Lire le contenu du fichier
             /// Désérialiser dans un liste de TemperatureModel
             /// Remplacer le contenu de la collection de Temperatures avec la nouvelle liste
+            if (!File.Exists(filename))
+            {
+                Console.WriteLine($"Le fichier {filename} n'existe pas. Veuillez le générer à partir de la sérialisation d'un tableau vers un fichier.");
+                Console.ReadKey();
+                return;
+            }
+
+             List<TemperatureModel> data;
+            using (StreamReader sr = File.OpenText(filename))
+            {
+                var fileContent = sr.ReadToEnd();
+
+                data = JsonConvert.DeserializeObject<List<TemperatureModel>>(fileContent);
+
+                
+            }
+            var vm = (TemperatureViewModel)ViewModels.FirstOrDefault(x => x.Name == typeof(TemperatureViewModel).Name);
+            foreach (TemperatureModel x in data)
+            {
+                vm.Temperatures.Add(x);
+            }
+
+
+            Console.WriteLine($"Le fichier {filename} contient {data.Count} enregistrements.");
+            Console.WriteLine($"Le premier enregistrement est : {data[0]}");
+            Console.ReadLine();
+
+
 
         }
 
@@ -232,6 +310,15 @@ namespace WeatherApp.ViewModels
             /// Si la réponse de la boîte de dialogue est vraie
             ///   Garder le nom du fichier dans Filename
             ///   Appeler la méthode openFromFile
+            ///  
+         
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    Filename = openFileDialog.FileName;
+
+                    openFromFile();
+                }
+            
 
         }
 
@@ -240,6 +327,29 @@ namespace WeatherApp.ViewModels
             /// TODO 13c : Compléter la méthode pour permettre de changer la langue
             /// Ne pas oublier de demander à l'utilisateur de redémarrer l'application
             /// Aide : ApiConsumerDemo
+            /// 
+            MessageBoxResult result = System.Windows.MessageBox.Show(Properties.Resources.msg_restart, "My App", MessageBoxButton.YesNo);
+            switch (result)
+            {
+                case MessageBoxResult.Yes:
+                    Properties.Settings.Default.Language = language;
+                    Properties.Settings.Default.Save();
+                    Restart();
+                    break;
+                case MessageBoxResult.No:
+                    Properties.Settings.Default.Language = language;
+                    Properties.Settings.Default.Save();
+                    break;
+
+            }
+
+            void Restart()
+            {
+                var filename = System.Windows.Application.ResourceAssembly.Location;
+                var newFile = Path.ChangeExtension(filename, ".exe");
+                Process.Start(newFile);
+                System.Windows.Application.Current.Shutdown();
+            }
         }
 
         #endregion

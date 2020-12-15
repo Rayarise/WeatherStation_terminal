@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Threading;
 using WeatherApp.Commands;
 using WeatherApp.Models;
@@ -104,6 +106,23 @@ namespace WeatherApp.ViewModels
                 /// dernière température insérée dans la liste est différente
                 /// que celle que l'on vient de récupérer.
                 /// Utiliser la méthode Insert de la collection
+                /// 
+
+                if (Temperatures.FirstOrDefault() != null)
+                {
+                    if (Temperatures.FirstOrDefault().City != CurrentTemp.City && Temperatures.FirstOrDefault().DateTime != CurrentTemp.DateTime)
+                    {
+                        Temperatures.Insert(0, CurrentTemp);
+
+
+                    }
+                }
+                else
+                {
+                    Temperatures.Insert(0, CurrentTemp);
+                }
+               
+                
 
                 Debug.WriteLine(CurrentTemp);
             }
